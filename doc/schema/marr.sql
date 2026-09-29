@@ -74,18 +74,68 @@ CREATE TABLE IF NOT EXISTS t_marr_img_card (
 CREATE TABLE IF NOT EXISTS t_marr_report_row (
   id bigint NOT NULL COMMENT '主键',
   batch_no varchar(64) DEFAULT NULL COMMENT '登记统计报送册号',
-  row_no int DEFAULT NULL COMMENT '原册内行次',
+  row_no int DEFAULT NULL COMMENT '原册内行次(进门照原册抄入，不得手敲)',
   item_code varchar(64) DEFAULT NULL COMMENT '报表项代号',
   qty decimal(12,2) DEFAULT NULL COMMENT '本行填报登记对数(对)',
-  status int DEFAULT NULL COMMENT '行进展 0待核 1已汇纳 2挂驳回',
+  status int DEFAULT NULL COMMENT '行进展 0候着转史 1收下(已汇纳) 2退回(挂驳回)',
+  del_flag int DEFAULT '0' COMMENT '删除标记 0正常 1删除',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  remark varchar(500) DEFAULT NULL COMMENT '备注(退回缘故：一句话只讲一件事)',
+  -- 条件唯一：同一册号下，行次/代号唯一只在"收下(1)"行之间强制（并条后这两个一对一）。
+  -- 退回行保留各自原册行次，可能与收下行重号或同项（如同项一行好一行负数），不参与唯一约束。
+  acc_row_no int GENERATED ALWAYS AS (CASE WHEN status = 1 THEN row_no END) STORED COMMENT '收下行行次(条件唯一用生成列)',
+  acc_item_code varchar(64) GENERATED ALWAYS AS (CASE WHEN status = 1 THEN item_code END) STORED COMMENT '收下行代号(条件唯一用生成列)',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_report_row_acc_rowno (batch_no, acc_row_no),
+  UNIQUE KEY uk_report_row_acc_item (batch_no, acc_item_code),
+  KEY idx_report_row_batch (batch_no),
+  KEY idx_report_row_item (item_code),
+  KEY idx_report_row_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='登记统计报送册核收转存行';
+
+-- 册头回执：一册一行，batch_no 唯一索引即"同册号第二回只认头一遍"的库内兜底。
+-- 合计三数（原册行数/收下/退回）在核收当回一次算定写入，回执与库里合计同口径同源；
+-- 退回 + 收下 = 原册行数（并条后记账行数）是恒等式。
+CREATE TABLE IF NOT EXISTS t_marr_report_batch (
+  id bigint NOT NULL COMMENT '主键',
+  batch_no varchar(64) NOT NULL COMMENT '登记统计报送册号',
+  raw_count int DEFAULT NULL COMMENT '原册行数(同项并条后的记账行数)',
+  accepted_count int DEFAULT NULL COMMENT '收下(已汇纳)行数',
+  rejected_count int DEFAULT NULL COMMENT '退回(挂驳回)行数',
+  accepted_qty decimal(14,2) DEFAULT NULL COMMENT '收下各行对数合计(对)',
+  result int DEFAULT NULL COMMENT '回执情形 0核讫 1部分退回 2白册(3超上限只在回执上给、不落册头)',
+  accepted_at datetime DEFAULT NULL COMMENT '头遍核收时间(满两个年度转史以此起算)',
   del_flag int DEFAULT '0' COMMENT '删除标记 0正常 1删除',
   create_by varchar(64) DEFAULT NULL COMMENT '创建者',
   create_time datetime DEFAULT NULL COMMENT '创建时间',
   update_by varchar(64) DEFAULT NULL COMMENT '更新者',
   update_time datetime DEFAULT NULL COMMENT '更新时间',
   remark varchar(500) DEFAULT NULL COMMENT '备注',
-  PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='登记统计报送册核收转存行';
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_report_batch_no (batch_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='登记统计报送册册头回执';
+
+-- 史册行：收下的行满两个年度整行挪入；挪走后现行表只留册头册号可对。
+CREATE TABLE IF NOT EXISTS t_marr_report_row_his (
+  id bigint NOT NULL COMMENT '主键(沿用原现行行主键)',
+  batch_no varchar(64) DEFAULT NULL COMMENT '登记统计报送册号',
+  row_no int DEFAULT NULL COMMENT '原册内行次',
+  item_code varchar(64) DEFAULT NULL COMMENT '报表项代号',
+  qty decimal(12,2) DEFAULT NULL COMMENT '本行填报登记对数(对)',
+  status int DEFAULT NULL COMMENT '行进展(入史时为1收下)',
+  archived_at datetime DEFAULT NULL COMMENT '挪进史册时间',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间(原核收时间)',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  remark varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (id),
+  KEY idx_report_his_batch (batch_no),
+  KEY idx_report_his_item (item_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='登记统计报送册核收转存行(史册)';
 
 CREATE TABLE IF NOT EXISTS t_marr_risk_line (
   id bigint NOT NULL COMMENT '主键',

@@ -52,9 +52,9 @@ public class TMarrReportRow implements Serializable {
     @ApiModelProperty(value = "本行填报登记对数(对)")
     private BigDecimal qty;
 
-    /** 行进展 0待核 1已汇纳 2挂驳回 */
+    /** 行进展 0候着转史 1收下(已汇纳) 2退回(挂驳回) */
     @TableField("status")
-    @ApiModelProperty(value = "行进展 0待核 1已汇纳 2挂驳回")
+    @ApiModelProperty(value = "行进展 0候着转史 1收下(已汇纳) 2退回(挂驳回)")
     private Integer status;
 
     /** 删除标记 0正常 1删除 */
