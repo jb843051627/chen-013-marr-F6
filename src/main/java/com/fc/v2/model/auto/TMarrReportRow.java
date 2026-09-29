@@ -52,9 +52,14 @@ public class TMarrReportRow implements Serializable {
     @ApiModelProperty(value = "本行填报登记对数(对)")
     private BigDecimal qty;
 
-    /** 行进展 0待核 1已汇纳 2挂驳回 */
+    /** 本账条并记的原册行数(人头) */
+    @TableField("merged_count")
+    @ApiModelProperty(value = "本账条并记的原册行数(人头)")
+    private Integer mergedCount;
+
+    /** 行进展 0候着转史 1已汇纳(收下) 2挂驳回(退回) */
     @TableField("status")
-    @ApiModelProperty(value = "行进展 0待核 1已汇纳 2挂驳回")
+    @ApiModelProperty(value = "行进展 0候着转史 1已汇纳(收下) 2挂驳回(退回)")
     private Integer status;
 
     /** 删除标记 0正常 1删除 */
@@ -127,6 +132,14 @@ public class TMarrReportRow implements Serializable {
 
     public void setQty(BigDecimal qty) {
         this.qty = qty;
+    }
+
+    public Integer getMergedCount() {
+        return mergedCount;
+    }
+
+    public void setMergedCount(Integer mergedCount) {
+        this.mergedCount = mergedCount;
     }
 
     public Integer getStatus() {
